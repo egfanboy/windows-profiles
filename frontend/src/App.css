@@ -1,0 +1,43 @@
+/* Custom styles for Ant Design components */
+.ant-layout-header {
+  backdrop-filter: blur(10px);
+}
+
+.ant-card {
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.ant-card-head-title {
+  font-weight: 600;
+}
+
+.ant-table-thead > tr > th {
+  background: #fafafa;
+  font-weight: 600;
+}
+
+.ant-btn {
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+.ant-input, .ant-select {
+  border-radius: 6px;
+}
+
+.ant-tag {
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+/* Custom responsive adjustments */
+@media (max-width: 768px) {
+  .ant-layout-header {
+    padding: 0 16px !important;
+  }
+  
+  .ant-layout-content {
+    padding: 16px !important;
+  }
+}
