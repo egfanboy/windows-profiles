@@ -8,6 +8,7 @@ export namespace main {
 	    deviceType: string;
 	    state: string;
 	    selected: boolean;
+	    nickname: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new AudioDevice(source);
@@ -22,6 +23,7 @@ export namespace main {
 	        this.deviceType = source["deviceType"];
 	        this.state = source["state"];
 	        this.selected = source["selected"];
+	        this.nickname = source["nickname"];
 	    }
 	}
 	export class Rect {
@@ -47,7 +49,10 @@ export namespace main {
 	    displayName: string;
 	    isPrimary: boolean;
 	    isActive: boolean;
+	    isEnabled: boolean;
+	    monitorId: string;
 	    bounds: Rect;
+	    nickname: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Monitor(source);
@@ -59,7 +64,10 @@ export namespace main {
 	        this.displayName = source["displayName"];
 	        this.isPrimary = source["isPrimary"];
 	        this.isActive = source["isActive"];
+	        this.isEnabled = source["isEnabled"];
+	        this.monitorId = source["monitorId"];
 	        this.bounds = this.convertValues(source["bounds"], Rect);
+	        this.nickname = source["nickname"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

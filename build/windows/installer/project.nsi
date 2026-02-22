@@ -88,6 +88,9 @@ Section
 
     !insertmacro wails.files
 
+    # Install tools directory
+    File /r "..\..\..\tools"
+
     CreateShortcut "$SMPROGRAMS\${INFO_PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCT_EXECUTABLE}"
     CreateShortCut "$DESKTOP\${INFO_PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCT_EXECUTABLE}"
 

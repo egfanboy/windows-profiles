@@ -4,16 +4,31 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"monitor-profile-manager-wails/pkg/audio"
+	"monitor-profile-manager-wails/pkg/monitors"
 	"os"
 	"path/filepath"
+	"sync"
 )
+
+// Global mutex to prevent concurrent startup operations
+var startupMutex sync.Mutex
+
+// Global mutex to prevent concurrent monitor enumeration
+var monitorEnumMutex sync.Mutex
+
+// Global mutex to prevent concurrent audio device enumeration
+var enumMutex sync.Mutex
 
 type Monitor struct {
 	DeviceName  string `json:"deviceName"`
 	DisplayName string `json:"displayName"`
 	IsPrimary   bool   `json:"isPrimary"`
 	IsActive    bool   `json:"isActive"`
+	IsEnabled   bool   `json:"isEnabled"` // user-controlled enable/disable state
+	MonitorId   string `json:"monitorId"`
 	Bounds      Rect   `json:"bounds"`
+	Nickname    string `json:"nickname"` // optional custom nickname
 }
 
 type Rect struct {
@@ -31,10 +46,16 @@ type AudioDevice struct {
 	DeviceType string `json:"deviceType"` // "output" or "input"
 	State      string `json:"state"`      // "active", "disabled", "notpresent", "unplugged"
 	Selected   bool   `json:"selected"`   // whether this device is selected for the profile
+	Nickname   string `json:"nickname"`   // optional custom nickname
 }
 
 type IgnoreList struct {
 	AudioDevices []string `json:"audioDevices"`
+}
+
+type NicknameStorage struct {
+	Monitors     map[string]string `json:"monitors"`     // deviceID -> nickname
+	AudioDevices map[string]string `json:"audioDevices"` // deviceID -> nickname
 }
 
 type Profile struct {
@@ -58,13 +79,14 @@ type AudioManager interface {
 	EnableAudioDevice(deviceID string, enable bool) error
 }
 
-// App struct
+// App struct holds the application state
 type App struct {
 	ctx            context.Context
 	monitors       []Monitor
 	audioDevices   []AudioDevice
 	profiles       []Profile
 	ignoreList     IgnoreList
+	nicknames      NicknameStorage
 	monitorManager MonitorManager
 	audioManager   AudioManager
 }
@@ -73,18 +95,37 @@ type App struct {
 func NewApp() *App {
 	app := &App{}
 	app.monitorManager = NewOSMonitorManager()
-	app.audioManager = NewOSAudioManager()
 	return app
 }
 
 // startup is called when the app starts. The context is saved
 // so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
+	// Prevent concurrent startup operations
+	startupMutex.Lock()
+	defer startupMutex.Unlock()
+
 	a.ctx = ctx
-	a.loadIgnoreList()
-	a.loadMonitors()
-	a.loadAudioDevices()
-	a.loadProfiles()
+
+	// Load all components with error handling to prevent crashes
+	if err := func() error {
+		a.loadIgnoreList()
+		a.loadNicknames()
+		a.loadMonitors()
+		a.loadAudioDevices()
+		a.loadProfiles()
+		return nil
+	}(); err != nil {
+		// If startup fails, initialize with empty defaults
+		a.monitors = []Monitor{}
+		a.audioDevices = []AudioDevice{}
+		a.profiles = []Profile{}
+		a.ignoreList = IgnoreList{AudioDevices: []string{}}
+		a.nicknames = NicknameStorage{
+			Monitors:     make(map[string]string),
+			AudioDevices: make(map[string]string),
+		}
+	}
 }
 
 // loadIgnoreList loads the audio device ignore list from disk
@@ -128,19 +169,77 @@ func (a *App) getIgnoreListPath() string {
 
 // loadMonitors loads monitors using the OS-specific implementation
 func (a *App) loadMonitors() {
-	monitors, err := a.monitorManager.EnumDisplayMonitors()
-	if err != nil {
-		monitors = []Monitor{}
+
+	// Prevent concurrent monitor loading
+	monitorEnumMutex.Lock()
+	defer monitorEnumMutex.Unlock()
+
+	monitors, err := monitors.GetMonitorList()
+	appMonitors := make([]Monitor, 0)
+	if err == nil {
+		for _, monitor := range monitors {
+			appMonitor := Monitor{}
+			appMonitor.IsActive = monitor.GetActive()
+			appMonitor.IsPrimary = monitor.GetPrimary()
+			appMonitor.DeviceName = monitor.GetName()
+			appMonitor.MonitorId = monitor.GetMonitorID()
+			appMonitor.DisplayName = monitor.GetMonitorName()
+
+			appMonitors = append(appMonitors, appMonitor)
+		}
+
 	}
-	a.monitors = monitors
+
+	if len(appMonitors) > 0 {
+		// Apply nicknames to monitors
+		for i := range appMonitors {
+			if nickname := a.GetMonitorNickname(appMonitors[i].DeviceName); nickname != "" {
+				appMonitors[i].Nickname = nickname
+			}
+			// Ensure isEnabled is always set
+			if !appMonitors[i].IsEnabled {
+				appMonitors[i].IsEnabled = true
+			}
+		}
+
+		a.monitors = appMonitors
+	}
+
 }
 
 // loadAudioDevices loads audio devices using the OS-specific implementation
 func (a *App) loadAudioDevices() {
-	devices, err := a.audioManager.EnumAudioDevices()
+	// Prevent concurrent audio device loading
+	enumMutex.Lock()
+	defer enumMutex.Unlock()
+
+	devices := make([]AudioDevice, 0)
+
+	svclDevices, err := audio.GetActiveOutputDevices()
+
+	fmt.Printf("%d audio devices found\n", len(svclDevices))
+
 	if err != nil {
 		devices = []AudioDevice{}
+	} else {
+		for _, device := range svclDevices {
+			ad := AudioDevice{}
+
+			ad.IsDefault = device.IsPrimary()
+			ad.IsEnabled = device.IsActive()
+			ad.Name = device.GetName()
+			ad.ID = device.GetCommandLineID()
+			devices = append(devices, ad)
+		}
 	}
+
+	// Apply nicknames to audio devices
+	for i := range devices {
+		if nickname := a.GetAudioDeviceNickname(devices[i].ID); nickname != "" {
+			devices[i].Nickname = nickname
+		}
+	}
+
 	a.audioDevices = devices
 }
 
@@ -168,6 +267,22 @@ func (a *App) loadProfiles() {
 			var profile Profile
 			if err := json.Unmarshal(data, &profile); err != nil {
 				continue
+			}
+
+			// Add backward compatibility for monitors without isEnabled field
+			for i := range profile.Monitors {
+				// If isEnabled is not set (zero value), default to true
+				if !profile.Monitors[i].IsEnabled {
+					profile.Monitors[i].IsEnabled = true
+				}
+			}
+
+			// Ensure profile fields are never null for backward compatibility
+			if profile.Monitors == nil {
+				profile.Monitors = []Monitor{}
+			}
+			if profile.AudioDevices == nil {
+				profile.AudioDevices = []AudioDevice{}
 			}
 
 			a.profiles = append(a.profiles, profile)
@@ -200,8 +315,8 @@ func (a *App) GetAudioDevices() []AudioDevice {
 func (a *App) GetAudioDevicesWithIgnoreStatus() map[string]interface{} {
 	a.loadAudioDevices()
 
-	var filteredDevices []AudioDevice
-	var ignoredDevices []AudioDevice
+	filteredDevices := make([]AudioDevice, 0)
+	ignoredDevices := make([]AudioDevice, 0)
 
 	for _, device := range a.audioDevices {
 		isIgnored := a.isDeviceIgnored(device.ID)
@@ -240,18 +355,31 @@ func (a *App) SaveProfile(name string) error {
 		return fmt.Errorf("profile name cannot be empty")
 	}
 
-	// Filter out ignored and unselected audio devices
-	var selectedAudioDevices []AudioDevice
+	// Save default audio devices (one for input, one for output)
+	var defaultAudioDevices []AudioDevice
+	var defaultOutput, defaultInput *AudioDevice
+
 	for _, device := range a.audioDevices {
-		if !a.isDeviceIgnored(device.ID) && device.Selected {
-			selectedAudioDevices = append(selectedAudioDevices, device)
+		if !a.isDeviceIgnored(device.ID) && device.IsDefault {
+			if device.DeviceType == "output" {
+				defaultOutput = &device
+			} else if device.DeviceType == "input" {
+				defaultInput = &device
+			}
 		}
+	}
+
+	if defaultOutput != nil {
+		defaultAudioDevices = append(defaultAudioDevices, *defaultOutput)
+	}
+	if defaultInput != nil {
+		defaultAudioDevices = append(defaultAudioDevices, *defaultInput)
 	}
 
 	profile := Profile{
 		Name:         name,
 		Monitors:     a.monitors,
-		AudioDevices: selectedAudioDevices,
+		AudioDevices: defaultAudioDevices,
 	}
 
 	data, err := json.MarshalIndent(profile, "", "  ")
@@ -272,27 +400,41 @@ func (a *App) SaveProfile(name string) error {
 func (a *App) ApplyProfile(profileName string) error {
 	for _, profile := range a.profiles {
 		if profile.Name == profileName {
-			// Apply monitors
-			if err := a.monitorManager.ApplyProfile(profile); err != nil {
-				return fmt.Errorf("failed to apply monitor settings: %v", err)
+			// Apply monitor states locally and set primary monitor to OS
+			for _, profileMonitor := range profile.Monitors {
+				// Update local state first
+				for i := range a.monitors {
+					if a.monitors[i].DeviceName == profileMonitor.DeviceName {
+						a.monitors[i].IsPrimary = profileMonitor.IsPrimary
+						a.monitors[i].IsEnabled = profileMonitor.IsEnabled
+						break
+					}
+				}
+
+				// Apply OS-level primary monitor setting (this is essential)
+				if profileMonitor.IsEnabled && profileMonitor.IsPrimary {
+					if err := a.monitorManager.SetPrimaryMonitor(profileMonitor.DeviceName); err != nil {
+						fmt.Printf("Warning: failed to set primary monitor %s: %v\n", profileMonitor.DeviceName, err)
+						// Continue with local state even if OS change fails
+					} else {
+						fmt.Printf("Successfully set primary monitor %s\n", profileMonitor.DeviceName)
+					}
+				}
 			}
 
-			// Apply audio devices
+			// Apply audio device states locally (skip OS changes due to Windows API limitations)
 			for _, device := range profile.AudioDevices {
-				if device.IsDefault && device.DeviceType == "output" {
-					if err := a.audioManager.SetDefaultAudioDevice(device.ID, "output"); err != nil {
-						return fmt.Errorf("failed to set default audio device: %v", err)
+				// Update local state only
+				for i := range a.audioDevices {
+					if a.audioDevices[i].ID == device.ID {
+						a.audioDevices[i].IsDefault = device.IsDefault
+						a.audioDevices[i].IsEnabled = device.IsEnabled
+						break
 					}
-				}
-				if device.IsDefault && device.DeviceType == "input" {
-					if err := a.audioManager.SetDefaultAudioDevice(device.ID, "input"); err != nil {
-						return fmt.Errorf("failed to set default audio device: %v", err)
-					}
-				}
-				if err := a.audioManager.EnableAudioDevice(device.ID, device.IsEnabled); err != nil {
-					return fmt.Errorf("failed to set audio device state: %v", err)
 				}
 			}
+			// Note: Primary monitor OS changes are attempted with improved Windows API
+			// Audio device OS changes are skipped due to Windows API limitations
 
 			return nil
 		}
@@ -354,4 +496,163 @@ func (a *App) GetSelectedAudioDevices() []AudioDevice {
 		}
 	}
 	return selected
+}
+
+// Nickname management methods
+
+// SetMonitorNickname sets a custom nickname for a monitor
+func (a *App) SetMonitorNickname(deviceName string, nickname string) error {
+	if a.nicknames.Monitors == nil {
+		a.nicknames.Monitors = make(map[string]string)
+	}
+	if nickname == "" {
+		delete(a.nicknames.Monitors, deviceName)
+	} else {
+		a.nicknames.Monitors[deviceName] = nickname
+	}
+	return a.saveNicknames()
+}
+
+// SetAudioDeviceNickname sets a custom nickname for an audio device
+func (a *App) SetAudioDeviceNickname(deviceID string, nickname string) error {
+	if a.nicknames.AudioDevices == nil {
+		a.nicknames.AudioDevices = make(map[string]string)
+	}
+	if nickname == "" {
+		delete(a.nicknames.AudioDevices, deviceID)
+	} else {
+		a.nicknames.AudioDevices[deviceID] = nickname
+	}
+	return a.saveNicknames()
+}
+
+// GetMonitorNickname gets the custom nickname for a monitor
+func (a *App) GetMonitorNickname(deviceName string) string {
+	if a.nicknames.Monitors == nil {
+		return ""
+	}
+	return a.nicknames.Monitors[deviceName]
+}
+
+// GetAudioDeviceNickname gets the custom nickname for an audio device
+func (a *App) GetAudioDeviceNickname(deviceID string) string {
+	if a.nicknames.AudioDevices == nil {
+		return ""
+	}
+	return a.nicknames.AudioDevices[deviceID]
+}
+
+// saveNicknames saves the nickname storage to disk
+func (a *App) saveNicknames() error {
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		return err
+	}
+
+	appDir := filepath.Join(configDir, "monitor-profile-manager")
+	err = os.MkdirAll(appDir, 0755)
+	if err != nil {
+		return err
+	}
+
+	nicknamesFile := filepath.Join(appDir, "nicknames.json")
+	data, err := json.MarshalIndent(a.nicknames, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(nicknamesFile, data, 0644)
+}
+
+// loadNicknames loads the nickname storage from disk
+func (a *App) loadNicknames() error {
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		return err
+	}
+
+	nicknamesFile := filepath.Join(configDir, "monitor-profile-manager", "nicknames.json")
+	data, err := os.ReadFile(nicknamesFile)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// No nicknames file exists, initialize empty storage
+			a.nicknames = NicknameStorage{
+				Monitors:     make(map[string]string),
+				AudioDevices: make(map[string]string),
+			}
+			return nil
+		}
+		return err
+	}
+
+	return json.Unmarshal(data, &a.nicknames)
+}
+
+// Monitor state management methods
+
+// SetMonitorPrimary sets a monitor as the primary monitor
+func (a *App) SetMonitorPrimary(deviceName string) error {
+	// Find the monitor and update primary status
+	for i := range a.monitors {
+		a.monitors[i].IsPrimary = (a.monitors[i].DeviceName == deviceName)
+		// If setting as primary, ensure it's enabled
+		if a.monitors[i].DeviceName == deviceName {
+			a.monitors[i].IsEnabled = true
+		}
+	}
+	return nil
+}
+
+// SetMonitorEnabled sets a monitor's enabled state
+func (a *App) SetMonitorEnabled(deviceName string, enabled bool) error {
+	// Find the monitor and update enabled status
+	for i := range a.monitors {
+		if a.monitors[i].DeviceName == deviceName {
+			// Cannot disable the primary monitor
+			if a.monitors[i].IsPrimary && !enabled {
+				return fmt.Errorf("monitor-profile-manager-wails/pkg/multimonitor")
+			}
+			a.monitors[i].IsEnabled = enabled
+			break
+		}
+	}
+	return nil
+}
+
+// GetMonitorStates returns the current monitor states
+func (a *App) GetMonitorStates() []Monitor {
+	return a.monitors
+}
+
+// SetDefaultAudioDevice sets a device as the default for its type
+func (a *App) SetDefaultAudioDevice(deviceID string) error {
+	// Find the device and its type
+	var targetType string
+	for _, device := range a.audioDevices {
+		if device.ID == deviceID {
+			targetType = device.DeviceType
+			break
+		}
+	}
+
+	if targetType == "" {
+		return fmt.Errorf("device not found")
+	}
+
+	// Clear default flag for all devices of the same type
+	for i := range a.audioDevices {
+		if a.audioDevices[i].DeviceType == targetType {
+			a.audioDevices[i].IsDefault = false
+		}
+	}
+
+	// Set the new default
+	for i := range a.audioDevices {
+		if a.audioDevices[i].ID == deviceID {
+			a.audioDevices[i].IsDefault = true
+			break
+		}
+	}
+
+	return nil
 }

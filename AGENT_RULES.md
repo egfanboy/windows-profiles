@@ -2,18 +2,20 @@
 
 ## Architecture Guidelines
 
-### Platform-Specific Code
-- **Always** use build constraints for platform-specific functionality (`//go:build windows` and `//go:build !windows`)
-- Implement Windows-specific APIs in separate files with `_windows.go` suffix
-- Provide fallback implementations for non-Windows platforms in `_other.go` files
-- Never mix platform-specific code with cross-platform logic
+### CLI-Based Architecture
+- **Always** use external CLI tools for system operations instead of direct Windows API calls
+- **MultiMonitorTool**: Use for all monitor detection and configuration operations
+- **SVCL**: Use for all audio device detection and configuration operations
+- Never mix direct Windows API calls with CLI-based operations
+- CLI tools are located in `tools/` subdirectory and must be checked for existence before use
 
-### Windows API Integration
-- Use `golang.org/x/sys/windows` for Windows API calls
-- Prefer lazy loading of DLLs with `windows.NewLazySystemDLL()`
-- Always check return values from Windows API calls
-- Convert between Go strings and UTF16 pointers using `windows.StringToUTF16Ptr()` and `windows.UTF16ToString()`
-- Handle all possible return codes from Windows API functions
+### CLI Tool Integration
+- Use `os/exec.Command` to execute external CLI tools
+- Always check for tool existence using `os.Stat` before execution
+- Parse CSV output from CLI tools using `encoding/csv` package
+- Handle CLI tool errors with descriptive context using `fmt.Errorf()`
+- Implement proper timeout handling for CLI tool execution
+- Clean up temporary files created by CLI tools (e.g., CSV exports)
 
 ### Error Handling
 - **Never** ignore error returns
@@ -21,22 +23,30 @@
 - Provide user-friendly error messages in the GUI while logging technical details
 - Implement proper error propagation from low-level API calls to high-level UI
 
-### GUI Development with Fyne
-- Use container-based layouts (VBox, HBox, Grid) for responsive design
+### GUI Development with Wails
+- Use React with TypeScript for frontend development
 - Implement proper data refresh patterns when underlying state changes
-- Use dialogs for user input and error display
-- Follow Fyne's widget lifecycle patterns for list updates
+- Use Wails context for communication between Go backend and React frontend
+- Follow React component lifecycle patterns for state updates
+- Use resizable table components for displaying monitor and audio device information
 
 ## Code Structure Rules
 
 ### File Organization
 ```
-main.go              - Main application entry point and UI logic
-monitor_windows.go   - Windows-specific monitor management
-monitor_other.go     - Non-Windows fallback implementations
+main.go              - Wails application entry point
+app.go               - Go backend with monitor and audio management logic
+monitor_manager_windows.go   - Windows-specific stub (CLI tools used instead)
+pkg/monitors/monitor.go     - MultiMonitorTool CLI integration
+pkg/audio/audio.go           - SVCL CLI integration
 go.mod              - Module dependencies
+wails.json          - Wails configuration
 AGENT_RULES.md      - This file
 README.md           - Project documentation
+tools/              - External CLI tools directory
+├── multimonitortool/   - MultiMonitorTool.exe
+└── svcl/               - SVCL.exe
+frontend/           - React frontend
 ```
 
 ### Data Structures
@@ -50,48 +60,56 @@ README.md           - Project documentation
 - Use atomic file operations to prevent corruption
 - Validate profile data before loading
 - Implement proper file permissions (0644 for files, 0755 for directories)
+- Include both monitor and audio device configurations in profiles
+- Store CLI tool paths and configurations for reproducibility
 
 ## Security Considerations
 
 ### System-Level Operations
-- Monitor configuration changes require appropriate system permissions
-- Validate all user inputs before applying system changes
+- Monitor and audio configuration changes require appropriate system permissions
+- Validate all CLI tool inputs before executing system changes
 - Implement confirmation dialogs for destructive operations
-- Log all system changes for audit purposes
+- Log all CLI tool executions and system changes for audit purposes
+- Handle CLI tool path resolution and existence checks
 
-### File Operations
-- Use `filepath.Join()` for cross-platform path construction
-- Validate file paths to prevent directory traversal
-- Implement proper error handling for file I/O operations
-- Create directories with appropriate permissions
+### CLI Tool Operations
+- Use `filepath.Join()` for cross-platform path construction to CLI tools
+- Validate CLI tool paths to prevent directory traversal
+- Implement proper error handling for CLI tool I/O operations
+- Create temporary files with appropriate permissions for CSV parsing
+- Clean up temporary files after CLI tool operations
 
 ## Performance Guidelines
 
-### Monitor Enumeration
-- Cache monitor information to avoid repeated system calls
-- Implement lazy loading for expensive operations
-- Use background goroutines for long-running operations
+### Monitor and Audio Enumeration
+- Cache monitor and audio information to avoid repeated CLI tool calls
+- Implement lazy loading for expensive CLI operations
+- Use background goroutines for long-running CLI operations
 - Update UI asynchronously to prevent blocking
+- Handle CLI tool timeouts and process cleanup
 
 ### Memory Management
 - Avoid memory leaks in long-running applications
-- Properly close Windows handles when no longer needed
-- Use efficient data structures for monitor lists
+- Properly close CLI tool processes and temporary files when no longer needed
+- Use efficient data structures for monitor and audio device lists
 - Implement proper cleanup on application exit
+- Handle CSV parsing memory efficiently
 
 ## Testing Requirements
 
 ### Unit Testing
-- Test Windows API integration with mock implementations
+- Test CLI tool integration with mock implementations
 - Validate profile serialization/deserialization
-- Test error handling paths
+- Test error handling paths for CLI tool failures
 - Verify UI state management
+- Test CSV parsing with various CLI tool output formats
 
 ### Integration Testing
-- Test monitor detection on actual hardware
-- Verify profile application works correctly
-- Test error scenarios (disconnected monitors, invalid profiles)
-- Validate cross-platform compatibility
+- Test monitor detection on actual hardware with MultiMonitorTool
+- Test audio device detection on actual hardware with SVCL
+- Verify profile application works correctly with CLI tools
+- Test error scenarios (missing CLI tools, invalid CLI output, disconnected devices)
+- Validate cross-platform builds (even if functionality is limited)
 
 ## User Experience Guidelines
 
@@ -110,8 +128,9 @@ README.md           - Project documentation
 ## Development Workflow
 
 ### Build Process
-- Use `go build` for compilation
-- Test on Windows with actual monitor configurations
+- Use `wails build` for compilation
+- Test on Windows with actual monitor and audio configurations
+- Ensure CLI tools are included in the build distribution
 - Validate cross-platform builds (even if functionality is limited)
 - Use `go mod tidy` to maintain clean dependencies
 
@@ -126,11 +145,13 @@ README.md           - Project documentation
 ### Style Guidelines
 - Follow Go formatting standards (`gofmt`)
 - Use meaningful variable and function names
-- Add comprehensive comments for Windows API interactions
+- Add comprehensive comments for CLI tool interactions
+- Document CLI tool command-line arguments and output formats
 - Implement proper package documentation
 
 ### Documentation
 - Document all exported functions and types
-- Explain Windows API constants and structures
-- Provide usage examples for complex operations
-- Maintain up-to-date README with build instructions
+- Explain CLI tool constants and output formats
+- Provide usage examples for complex CLI operations
+- Maintain up-to-date README with build instructions and CLI tool requirements
+- Document CLI tool versions and compatibility requirements

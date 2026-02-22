@@ -1,0 +1,7 @@
+# Sound Volume CommandLine (SVCL) Tool
+
+This directory should contain:
+- svcl.exe - Sound Volume Command Line tool
+- readme.txt - Tool documentation (ignored by git)
+
+Download SVCL from: https://www.nirsoft.net/utils/sound_volume_command_line.html
