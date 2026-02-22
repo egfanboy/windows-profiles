@@ -1,0 +1,7 @@
+# MultiMonitorTool
+
+This directory should contain:
+- MultiMonitorTool.exe - Multi Monitor management tool
+- MultiMonitorTool.cfg - Tool configuration (ignored by git)
+
+Download MultiMonitorTool from: https://www.nirsoft.net/utils/multi_monitor_tool.html

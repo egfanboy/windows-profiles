@@ -2,6 +2,8 @@ package main
 
 import (
 	"embed"
+	"log"
+	"runtime/debug"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -12,6 +14,14 @@ import (
 var assets embed.FS
 
 func main() {
+	// Set up panic recovery to prevent crashes
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("Application panic recovered: %v", r)
+			log.Printf("Stack trace: %s", debug.Stack())
+		}
+	}()
+
 	// Create an instance of the app structure
 	app := NewApp()
 

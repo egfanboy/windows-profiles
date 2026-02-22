@@ -6,12 +6,24 @@ export function ApplyProfile(arg1) {
   return window['go']['main']['App']['ApplyProfile'](arg1);
 }
 
+export function GetAudioDeviceNickname(arg1) {
+  return window['go']['main']['App']['GetAudioDeviceNickname'](arg1);
+}
+
 export function GetAudioDevices() {
   return window['go']['main']['App']['GetAudioDevices']();
 }
 
 export function GetAudioDevicesWithIgnoreStatus() {
   return window['go']['main']['App']['GetAudioDevicesWithIgnoreStatus']();
+}
+
+export function GetMonitorNickname(arg1) {
+  return window['go']['main']['App']['GetMonitorNickname'](arg1);
+}
+
+export function GetMonitorStates() {
+  return window['go']['main']['App']['GetMonitorStates']();
 }
 
 export function GetMonitors() {
@@ -42,8 +54,28 @@ export function SaveProfile(arg1) {
   return window['go']['main']['App']['SaveProfile'](arg1);
 }
 
+export function SetAudioDeviceNickname(arg1, arg2) {
+  return window['go']['main']['App']['SetAudioDeviceNickname'](arg1, arg2);
+}
+
 export function SetAudioDeviceSelection(arg1, arg2) {
   return window['go']['main']['App']['SetAudioDeviceSelection'](arg1, arg2);
+}
+
+export function SetDefaultAudioDevice(arg1) {
+  return window['go']['main']['App']['SetDefaultAudioDevice'](arg1);
+}
+
+export function SetMonitorEnabled(arg1, arg2) {
+  return window['go']['main']['App']['SetMonitorEnabled'](arg1, arg2);
+}
+
+export function SetMonitorNickname(arg1, arg2) {
+  return window['go']['main']['App']['SetMonitorNickname'](arg1, arg2);
+}
+
+export function SetMonitorPrimary(arg1) {
+  return window['go']['main']['App']['SetMonitorPrimary'](arg1);
 }
 
 export function UnignoreAudioDevice(arg1) {

@@ -4,9 +4,15 @@ import {main} from '../models';
 
 export function ApplyProfile(arg1:string):Promise<void>;
 
+export function GetAudioDeviceNickname(arg1:string):Promise<string>;
+
 export function GetAudioDevices():Promise<Array<main.AudioDevice>>;
 
 export function GetAudioDevicesWithIgnoreStatus():Promise<Record<string, any>>;
+
+export function GetMonitorNickname(arg1:string):Promise<string>;
+
+export function GetMonitorStates():Promise<Array<main.Monitor>>;
 
 export function GetMonitors():Promise<Array<main.Monitor>>;
 
@@ -22,6 +28,16 @@ export function RefreshMonitors():Promise<Array<main.Monitor>>;
 
 export function SaveProfile(arg1:string):Promise<void>;
 
+export function SetAudioDeviceNickname(arg1:string,arg2:string):Promise<void>;
+
 export function SetAudioDeviceSelection(arg1:string,arg2:boolean):Promise<void>;
+
+export function SetDefaultAudioDevice(arg1:string):Promise<void>;
+
+export function SetMonitorEnabled(arg1:string,arg2:boolean):Promise<void>;
+
+export function SetMonitorNickname(arg1:string,arg2:string):Promise<void>;
+
+export function SetMonitorPrimary(arg1:string):Promise<void>;
 
 export function UnignoreAudioDevice(arg1:string):Promise<void>;
