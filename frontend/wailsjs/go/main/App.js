@@ -6,6 +6,10 @@ export function ApplyProfile(arg1) {
   return window['go']['main']['App']['ApplyProfile'](arg1);
 }
 
+export function DeleteProfile(arg1) {
+  return window['go']['main']['App']['DeleteProfile'](arg1);
+}
+
 export function GetAudioDeviceNickname(arg1) {
   return window['go']['main']['App']['GetAudioDeviceNickname'](arg1);
 }

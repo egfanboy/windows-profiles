@@ -4,6 +4,8 @@ import {main} from '../models';
 
 export function ApplyProfile(arg1:string):Promise<void>;
 
+export function DeleteProfile(arg1:string):Promise<void>;
+
 export function GetAudioDeviceNickname(arg1:string):Promise<string>;
 
 export function GetAudioDevices():Promise<Array<main.AudioDevice>>;
