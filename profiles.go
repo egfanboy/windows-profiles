@@ -13,22 +13,40 @@ const (
 	PROFILE_FILE_NAME = "profiles.json"
 )
 
-type Profile struct {
-	Name               string `json:"name"`
-	MonitorProfileName string `json:"monitorProfileName"`
-	AudioProfileName   string `json:"audioProfileName"`
+type AudioProfile struct {
+	DefaultOutputDeviceId string `json:"defaultOutputDeviceId"`
 }
 
-// SaveProfile saves a monitor profile with the given name
-func (a *App) SaveProfile(name string) error {
-	if name == "" {
+type SaveProfileRequest struct {
+	Name                  string `json:"name"`
+	DefaultOutputDeviceId string `json:"defaultOutputDeviceId"`
+}
+
+// MultiMonitorTool has integrated profile management. Therefore we can use the name
+// to derive the profile. However, svcl does not have profile management, so we need
+// to save the audio information as part of the profile.
+
+type Profile struct {
+	Name  string       `json:"name"`
+	Audio AudioProfile `json:"audio"`
+}
+
+// SaveProfile saves a monitor profile with the given profile data
+func (a *App) SaveProfile(request SaveProfileRequest) error {
+	if request.Name == "" {
 		return fmt.Errorf("profile name cannot be empty")
 	}
 
 	profile := Profile{
-		Name:               name,
-		MonitorProfileName: "",
-		AudioProfileName:   "",
+		Name: request.Name,
+		Audio: AudioProfile{
+			DefaultOutputDeviceId: request.DefaultOutputDeviceId,
+		},
+	}
+
+	err := a.saveMonitorProfile(profile.Name)
+	if err != nil {
+		return err
 	}
 
 	a.profiles = append(a.profiles, profile)
@@ -45,6 +63,12 @@ func (a *App) DeleteProfile(profileName string) error {
 	}
 
 	a.profiles = newProfiles
+
+	// Clean up the monitor .cfg file
+	monitorConfigPath := a.getMonitorConfigPath(profileName)
+	if err := os.Remove(monitorConfigPath); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("failed to remove monitor config file: %v", err)
+	}
 
 	err := a.saveProfilesToDisk()
 	if err != nil {

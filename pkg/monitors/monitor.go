@@ -172,6 +172,28 @@ func GetMonitorList() ([]MonitorInfo, error) {
 	return monitors, nil
 }
 
+// SaveMonitorConfig saves the current monitor configuration to a config file
+func SaveMonitorConfig(configPath string) error {
+	// Check if MultiMonitorTool.exe exists
+	if err := CheckMultiMonitorToolExists(); err != nil {
+		return err
+	}
+
+	// Get MultiMonitorTool path
+	toolPath, err := GetMultiMonitorToolPath()
+	if err != nil {
+		return err
+	}
+
+	// Execute the save config command
+	cmd := exec.Command(toolPath, "/SaveConfig", configPath)
+	err = cmd.Run()
+	if err != nil {
+		return fmt.Errorf("failed to save monitor configuration: %w", err)
+	}
+	return nil
+}
+
 // SetPrimaryMonitor sets the specified monitor as the primary monitor
 func SetPrimaryMonitor(monitorId string) error {
 	// Check if MultiMonitorTool.exe exists
