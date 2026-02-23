@@ -90,8 +90,8 @@ export namespace main {
 	}
 	export class Profile {
 	    name: string;
-	    monitors: Monitor[];
-	    audioDevices: AudioDevice[];
+	    monitorProfileName: string;
+	    audioProfileName: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Profile(source);
@@ -100,27 +100,9 @@ export namespace main {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.name = source["name"];
-	        this.monitors = this.convertValues(source["monitors"], Monitor);
-	        this.audioDevices = this.convertValues(source["audioDevices"], AudioDevice);
+	        this.monitorProfileName = source["monitorProfileName"];
+	        this.audioProfileName = source["audioProfileName"];
 	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
 	}
 
 }

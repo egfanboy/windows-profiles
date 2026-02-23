@@ -6,8 +6,9 @@ import {
   SaveOutlined, PlayCircleOutlined, EditOutlined,
   DeleteOutlined
 } from '@ant-design/icons';
+import { ConfirmProfileDelete } from './ConfirmProfileDelete';
 import { 
-  SaveProfile, ApplyProfile, GetProfiles
+  SaveProfile, ApplyProfile, GetProfiles, DeleteProfile
 } from "../../../wailsjs/go/main/App";
 
 const { Title } = Typography;
@@ -48,6 +49,8 @@ export function ProfileManagement({ profiles, loading, onProfilesChange }: Profi
   const [selectedProfile, setSelectedProfile] = useState<string>('');
   const [profileName, setProfileName] = useState<string>('');
   const [editingProfile, setEditingProfile] = useState<string | null>(null);
+  const [deleteModalVisible, setDeleteModalVisible] = useState<boolean>(false);
+  const [profileToDelete, setProfileToDelete] = useState<string>('');
 
   const handleSaveProfile = async () => {
     if (!profileName.trim()) {
@@ -94,6 +97,31 @@ export function ProfileManagement({ profiles, loading, onProfilesChange }: Profi
     } catch (error) {
       console.error('Error applying profile:', error);
     }
+  };
+
+  const showDeleteConfirm = (profileName: string) => {
+    setProfileToDelete(profileName);
+    setDeleteModalVisible(true);
+  };
+
+  const handleDeleteProfile = async () => {
+    if (!profileToDelete) {
+      return;
+    }
+
+    try {
+      await DeleteProfile(profileToDelete);
+      setDeleteModalVisible(false);
+      setProfileToDelete('');
+      onProfilesChange();
+    } catch (error) {
+      console.error('Error deleting profile:', error);
+    }
+  };
+
+  const cancelDeleteProfile = () => {
+    setDeleteModalVisible(false);
+    setProfileToDelete('');
   };
 
   return (
@@ -199,6 +227,13 @@ export function ProfileManagement({ profiles, loading, onProfilesChange }: Profi
                         icon={<EditOutlined />}
                         onClick={() => startEditingProfile(profile.name)}
                       />
+                      <Button 
+                        size="small" 
+                        type="text" 
+                        danger
+                        icon={<DeleteOutlined />}
+                        onClick={() => showDeleteConfirm(profile.name)}
+                      />
                          </>
                     }
                   >
@@ -218,6 +253,13 @@ export function ProfileManagement({ profiles, loading, onProfilesChange }: Profi
           </>
         )}
       </Space>
+      <ConfirmProfileDelete
+        visible={deleteModalVisible}
+        profileName={profileToDelete}
+        onConfirm={handleDeleteProfile}
+        onCancel={cancelDeleteProfile}
+        loading={loading}
+      />
     </Card>
   );
 }

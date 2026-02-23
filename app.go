@@ -11,6 +11,10 @@ import (
 	"sync"
 )
 
+const (
+	SETTINGS_DIRECTORY = ".windows-profile-manager"
+)
+
 // Global mutex to prevent concurrent startup operations
 var startupMutex sync.Mutex
 
@@ -56,12 +60,6 @@ type IgnoreList struct {
 type NicknameStorage struct {
 	Monitors     map[string]string `json:"monitors"`     // deviceID -> nickname
 	AudioDevices map[string]string `json:"audioDevices"` // deviceID -> nickname
-}
-
-type Profile struct {
-	Name         string        `json:"name"`
-	Monitors     []Monitor     `json:"monitors"`
-	AudioDevices []AudioDevice `json:"audioDevices"`
 }
 
 // MonitorManager interface defines OS-specific monitor operations
@@ -217,8 +215,6 @@ func (a *App) loadAudioDevices() {
 
 	svclDevices, err := audio.GetActiveOutputDevices()
 
-	fmt.Printf("%d audio devices found\n", len(svclDevices))
-
 	if err != nil {
 		devices = []AudioDevice{}
 	} else {
@@ -241,62 +237,6 @@ func (a *App) loadAudioDevices() {
 	}
 
 	a.audioDevices = devices
-}
-
-// loadProfiles loads saved monitor profiles from disk
-func (a *App) loadProfiles() {
-	profilesDir := a.getProfilesDir()
-	if err := os.MkdirAll(profilesDir, 0755); err != nil {
-		return
-	}
-
-	files, err := os.ReadDir(profilesDir)
-	if err != nil {
-		return
-	}
-
-	a.profiles = []Profile{}
-	for _, file := range files {
-		if filepath.Ext(file.Name()) == ".json" && file.Name() != "ignore_list.json" {
-			profilePath := filepath.Join(profilesDir, file.Name())
-			data, err := os.ReadFile(profilePath)
-			if err != nil {
-				continue
-			}
-
-			var profile Profile
-			if err := json.Unmarshal(data, &profile); err != nil {
-				continue
-			}
-
-			// Add backward compatibility for monitors without isEnabled field
-			for i := range profile.Monitors {
-				// If isEnabled is not set (zero value), default to true
-				if !profile.Monitors[i].IsEnabled {
-					profile.Monitors[i].IsEnabled = true
-				}
-			}
-
-			// Ensure profile fields are never null for backward compatibility
-			if profile.Monitors == nil {
-				profile.Monitors = []Monitor{}
-			}
-			if profile.AudioDevices == nil {
-				profile.AudioDevices = []AudioDevice{}
-			}
-
-			a.profiles = append(a.profiles, profile)
-		}
-	}
-}
-
-// getProfilesDir returns the directory where profiles are stored
-func (a *App) getProfilesDir() string {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return "./profiles"
-	}
-	return filepath.Join(homeDir, "MonitorProfiles")
 }
 
 // GetMonitors returns the current list of monitors
@@ -341,105 +281,6 @@ func (a *App) isDeviceIgnored(deviceID string) bool {
 		}
 	}
 	return false
-}
-
-// GetProfiles returns the list of saved profiles
-func (a *App) GetProfiles() []Profile {
-	a.loadProfiles()
-	return a.profiles
-}
-
-// SaveProfile saves a monitor profile with the given name
-func (a *App) SaveProfile(name string) error {
-	if name == "" {
-		return fmt.Errorf("profile name cannot be empty")
-	}
-
-	// Save default audio devices (one for input, one for output)
-	var defaultAudioDevices []AudioDevice
-	var defaultOutput, defaultInput *AudioDevice
-
-	for _, device := range a.audioDevices {
-		if !a.isDeviceIgnored(device.ID) && device.IsDefault {
-			if device.DeviceType == "output" {
-				defaultOutput = &device
-			} else if device.DeviceType == "input" {
-				defaultInput = &device
-			}
-		}
-	}
-
-	if defaultOutput != nil {
-		defaultAudioDevices = append(defaultAudioDevices, *defaultOutput)
-	}
-	if defaultInput != nil {
-		defaultAudioDevices = append(defaultAudioDevices, *defaultInput)
-	}
-
-	profile := Profile{
-		Name:         name,
-		Monitors:     a.monitors,
-		AudioDevices: defaultAudioDevices,
-	}
-
-	data, err := json.MarshalIndent(profile, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal profile: %v", err)
-	}
-
-	profilePath := filepath.Join(a.getProfilesDir(), name+".json")
-	if err := os.WriteFile(profilePath, data, 0644); err != nil {
-		return fmt.Errorf("failed to save profile: %v", err)
-	}
-
-	a.loadProfiles()
-	return nil
-}
-
-// ApplyProfile applies a monitor profile by name
-func (a *App) ApplyProfile(profileName string) error {
-	for _, profile := range a.profiles {
-		if profile.Name == profileName {
-			// Apply monitor states locally and set primary monitor to OS
-			for _, profileMonitor := range profile.Monitors {
-				// Update local state first
-				for i := range a.monitors {
-					if a.monitors[i].DeviceName == profileMonitor.DeviceName {
-						a.monitors[i].IsPrimary = profileMonitor.IsPrimary
-						a.monitors[i].IsEnabled = profileMonitor.IsEnabled
-						break
-					}
-				}
-
-				// Apply OS-level primary monitor setting (this is essential)
-				if profileMonitor.IsEnabled && profileMonitor.IsPrimary {
-					if err := a.monitorManager.SetPrimaryMonitor(profileMonitor.DeviceName); err != nil {
-						fmt.Printf("Warning: failed to set primary monitor %s: %v\n", profileMonitor.DeviceName, err)
-						// Continue with local state even if OS change fails
-					} else {
-						fmt.Printf("Successfully set primary monitor %s\n", profileMonitor.DeviceName)
-					}
-				}
-			}
-
-			// Apply audio device states locally (skip OS changes due to Windows API limitations)
-			for _, device := range profile.AudioDevices {
-				// Update local state only
-				for i := range a.audioDevices {
-					if a.audioDevices[i].ID == device.ID {
-						a.audioDevices[i].IsDefault = device.IsDefault
-						a.audioDevices[i].IsEnabled = device.IsEnabled
-						break
-					}
-				}
-			}
-			// Note: Primary monitor OS changes are attempted with improved Windows API
-			// Audio device OS changes are skipped due to Windows API limitations
-
-			return nil
-		}
-	}
-	return fmt.Errorf("profile '%s' not found", profileName)
 }
 
 // RefreshMonitors refreshes the monitor list
