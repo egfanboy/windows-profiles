@@ -28,7 +28,7 @@ export function RefreshAudioDevices():Promise<Record<string, any>>;
 
 export function RefreshMonitors():Promise<Array<main.Monitor>>;
 
-export function SaveProfile(arg1:string):Promise<void>;
+export function SaveProfile(arg1:main.SaveProfileRequest):Promise<void>;
 
 export function SetAudioDeviceNickname(arg1:string,arg2:string):Promise<void>;
 

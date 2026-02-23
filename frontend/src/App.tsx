@@ -210,6 +210,7 @@ function App() {
               profiles={profiles}
               loading={loading}
               onProfilesChange={handleProfilesChange}
+              audioDevices={audioDevices}
             />
           </Col>
         </Row>

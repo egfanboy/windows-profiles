@@ -10,6 +10,7 @@ import { ConfirmProfileDelete } from './ConfirmProfileDelete';
 import { 
   SaveProfile, ApplyProfile, GetProfiles, DeleteProfile
 } from "../../../wailsjs/go/main/App";
+import { main } from "../../../wailsjs/go/models";
 
 const { Title } = Typography;
 
@@ -37,15 +38,19 @@ interface Profile {
   name: string;
   monitors?: Monitor[];
   audioDevices?: AudioDevice[];
+  audio?: {
+    defaultOutputDeviceId: string;
+  };
 }
 
 interface ProfileManagementProps {
   profiles: Profile[];
   loading: boolean;
   onProfilesChange: () => void;
+  audioDevices: {filtered: AudioDevice[], ignored: AudioDevice[]};
 }
 
-export function ProfileManagement({ profiles, loading, onProfilesChange }: ProfileManagementProps) {
+export function ProfileManagement({ profiles, loading, onProfilesChange, audioDevices }: ProfileManagementProps) {
   const [selectedProfile, setSelectedProfile] = useState<string>('');
   const [profileName, setProfileName] = useState<string>('');
   const [editingProfile, setEditingProfile] = useState<string | null>(null);
@@ -58,7 +63,16 @@ export function ProfileManagement({ profiles, loading, onProfilesChange }: Profi
     }
 
     try {
-      await SaveProfile(profileName);
+      // Automatically use the current default output audio device from system state
+      const currentDefaultDevice = audioDevices.filtered.find(d => d.isDefault && (d.deviceType === 'output' || !d.deviceType));
+      const defaultOutputDeviceId = currentDefaultDevice?.id || '';
+      
+      const saveRequest = new main.SaveProfileRequest({
+        name: profileName,
+        defaultOutputDeviceId: defaultOutputDeviceId
+      });
+      
+      await SaveProfile(saveRequest);
       setProfileName('');
       setEditingProfile(null);
       onProfilesChange();
@@ -137,32 +151,32 @@ export function ProfileManagement({ profiles, loading, onProfilesChange }: Profi
       <Space direction="vertical" style={{ width: '100%' }} size="large">
         <div>
           <Title level={5}>Save Current Profile</Title>
-          <Input.Group compact>
+          <Space direction="vertical" style={{ width: '100%' }} size="small">
             <Input
-              style={{ width: 'calc(100% - 170px)' }}
               placeholder={editingProfile ? "Edit profile name" : "Enter profile name"}
               value={profileName}
               onChange={(e) => setProfileName(e.target.value)}
               onPressEnter={handleSaveProfile}
             />
-            <Button 
-              type="primary" 
-              icon={<SaveOutlined />}
-              onClick={handleSaveProfile}
-              loading={loading}
-              style={{ width: '70px' }}
-            >
-              {editingProfile ? 'Update' : 'Save'}
-            </Button>
-            {editingProfile && (
+            <Space>
               <Button 
-                onClick={cancelEditingProfile}
-                style={{ width: '70px' }}
+                type="primary" 
+                icon={<SaveOutlined />}
+                onClick={handleSaveProfile}
+                loading={loading}
+                disabled={!profileName.trim()}
               >
-                Cancel
+                {editingProfile ? 'Update' : 'Save'}
               </Button>
-            )}
-          </Input.Group>
+              {editingProfile && (
+                <Button 
+                  onClick={cancelEditingProfile}
+                >
+                  Cancel
+                </Button>
+              )}
+            </Space>
+          </Space>
         </div>
 
         <Divider />
