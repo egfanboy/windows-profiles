@@ -3,7 +3,7 @@ import {
   Table, Button, Input, Space, Tag, Tooltip, Switch, Radio, Card, Dropdown, Menu
 } from 'antd';
 import { 
-  DesktopOutlined, EditOutlined, ReloadOutlined, CheckCircleOutlined, CloseCircleOutlined, EllipsisOutlined
+  DesktopOutlined, EditOutlined, ReloadOutlined, CheckCircleOutlined, CloseCircleOutlined, EllipsisOutlined, StarOutlined
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { 
@@ -85,26 +85,33 @@ export function MonitorsTable({ monitors, loading, onRefresh }: MonitorsTablePro
 
   const monitorColumns: ColumnsType<Monitor> = [
     {
-      title: 'Active',
+      title: 'State',
       dataIndex: 'isActive',
-      key: 'isActive',
-      width: 100,
-      render: (isActive: boolean) => (
-        <Tag color={isActive ? 'success' : 'error'} icon={isActive ? <CheckCircleOutlined /> : <CloseCircleOutlined />}>
-          {isActive ? 'Active' : 'Inactive'}
-        </Tag>
+      key: 'state',
+      width: 50,
+      render: (_, record: Monitor) => (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {record.isPrimary && (
+            <Tag color="purple" icon={<StarOutlined />}>
+              Primary
+            </Tag>
+          )}
+          <Tag color={record.isActive ? 'success' : 'error'} icon={record.isActive ? <CheckCircleOutlined /> : <CloseCircleOutlined />}>
+            {record.isActive ? 'Active' : 'Inactive'}
+          </Tag>
+        </div>
       )
     },
     {
       title: 'Display Name',
       dataIndex: 'displayName',
       key: 'displayName',
-      width: 200
+      width: 150
     },
     {
       title: 'Device Name',
       key: 'deviceName',
-      width: 350,
+      width: 200,
       render: (_, record: Monitor) => {
         const isEditing = editingMonitor === record.deviceName;
         const displayName = record.nickname || record.deviceName;
@@ -152,20 +159,9 @@ export function MonitorsTable({ monitors, loading, onRefresh }: MonitorsTablePro
       }
     },
     {
-      title: 'Primary',
-      key: 'isPrimary',
-      width: 100,
-      render: (_, record: Monitor) => (
-        <Radio
-          checked={record.isPrimary}
-          onChange={() => handleSetMonitorPrimary(record.deviceName)}
-        />
-      )
-    },
-    {
       title: 'Actions',
       key: 'actions',
-      width: 100,
+      width: 50,
       render: (_, record: Monitor) => {
         const actions = getMonitorActions(record);
         const menuItems = actions.map(action => ({
@@ -217,7 +213,6 @@ export function MonitorsTable({ monitors, loading, onRefresh }: MonitorsTablePro
         rowKey="deviceName"
         loading={loading}
         pagination={false}
-        scroll={{ x: 1000 }}
         size="middle"
       />
     </Card>
