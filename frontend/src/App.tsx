@@ -17,6 +17,7 @@ interface Monitor {
   deviceName: string;
   displayName: string;
   isPrimary: boolean;
+  monitorId: string;
   isActive: boolean;
   isEnabled: boolean; // user-controlled enable/disable state
   nickname: string;

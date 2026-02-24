@@ -430,36 +430,6 @@ func (a *App) loadNicknames() error {
 }
 
 // Monitor state management methods
-
-// SetMonitorPrimary sets a monitor as the primary monitor
-func (a *App) SetMonitorPrimary(deviceName string) error {
-	// Find the monitor and update primary status
-	for i := range a.monitors {
-		a.monitors[i].IsPrimary = (a.monitors[i].DeviceName == deviceName)
-		// If setting as primary, ensure it's enabled
-		if a.monitors[i].DeviceName == deviceName {
-			a.monitors[i].IsEnabled = true
-		}
-	}
-	return nil
-}
-
-// SetMonitorEnabled sets a monitor's enabled state
-func (a *App) SetMonitorEnabled(deviceName string, enabled bool) error {
-	// Find the monitor and update enabled status
-	for i := range a.monitors {
-		if a.monitors[i].DeviceName == deviceName {
-			// Cannot disable the primary monitor
-			if a.monitors[i].IsPrimary && !enabled {
-				return fmt.Errorf("monitor-profile-manager-wails/pkg/multimonitor")
-			}
-			a.monitors[i].IsEnabled = enabled
-			break
-		}
-	}
-	return nil
-}
-
 // GetMonitorStates returns the current monitor states
 func (a *App) GetMonitorStates() []Monitor {
 	return a.monitors

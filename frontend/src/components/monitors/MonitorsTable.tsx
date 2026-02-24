@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { 
-  Table, Button, Input, Space, Tag, Tooltip, Switch, Radio, Card
+  Table, Button, Input, Space, Tag, Tooltip, Switch, Radio, Card, Dropdown, Menu
 } from 'antd';
 import { 
-  DesktopOutlined, EditOutlined, ReloadOutlined, CheckCircleOutlined, CloseCircleOutlined
+  DesktopOutlined, EditOutlined, ReloadOutlined, CheckCircleOutlined, CloseCircleOutlined, EllipsisOutlined
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { 
-  SetMonitorNickname, SetMonitorPrimary, SetMonitorEnabled
+  SetMonitorNickname, SetMonitorPrimary, SetMonitorEnabledState
 } from "../../../wailsjs/go/main/App";
 
 interface Monitor {
@@ -17,6 +17,7 @@ interface Monitor {
   isActive: boolean;
   isEnabled: boolean;
   nickname: string;
+  monitorId: string;
 }
 
 interface MonitorsTableProps {
@@ -28,6 +29,22 @@ interface MonitorsTableProps {
 export function MonitorsTable({ monitors, loading, onRefresh }: MonitorsTableProps) {
   const [editingMonitor, setEditingMonitor] = useState<string | null>(null);
   const [tempNickname, setTempNickname] = useState<string>('');
+
+  // Define actions for the dropdown menu
+  const getMonitorActions = (record: Monitor) => [
+    {
+      key: 'toggle-enabled',
+      label: record.isActive ? 'Disable Monitor' : 'Enable Monitor',
+      onClick: () => handleSetMonitorEnabled(record.monitorId, !record.isActive),
+      disabled: record.isPrimary && !record.isEnabled
+    },
+    {
+      key: 'set-primary',
+      label: 'Set as Primary',
+      onClick: () => handleSetMonitorPrimary(record.monitorId),
+      disabled: record.isPrimary || !record.isEnabled || !record.isActive
+    }
+  ];
 
   const startEditingMonitorNickname = (deviceName: string, currentNickname: string) => {
     setEditingMonitor(deviceName);
@@ -57,9 +74,9 @@ export function MonitorsTable({ monitors, loading, onRefresh }: MonitorsTablePro
     }
   };
 
-  const handleSetMonitorEnabled = async (deviceName: string, enabled: boolean) => {
+  const handleSetMonitorEnabled = async (monitorId: string, enabled: boolean) => {
     try {
-      await SetMonitorEnabled(deviceName, enabled);
+      await SetMonitorEnabledState(monitorId, enabled);
       window.location.reload();
     } catch (error) {
       console.error('Error setting monitor enabled:', error);
@@ -146,16 +163,32 @@ export function MonitorsTable({ monitors, loading, onRefresh }: MonitorsTablePro
       )
     },
     {
-      title: 'Enabled',
-      key: 'isEnabled',
+      title: 'Actions',
+      key: 'actions',
       width: 100,
-      render: (_, record: Monitor) => (
-        <Switch
-          checked={record.isEnabled}
-          onChange={(enabled) => handleSetMonitorEnabled(record.deviceName, enabled)}
-          disabled={record.isPrimary && !record.isEnabled}
-        />
-      )
+      render: (_, record: Monitor) => {
+        const actions = getMonitorActions(record);
+        const menuItems = actions.map(action => ({
+          key: action.key,
+          label: action.label,
+          onClick: action.onClick,
+          disabled: action.disabled
+        }));
+
+        return (
+          <Dropdown
+            menu={{ items: menuItems }}
+            trigger={['click']}
+            placement="bottomRight"
+          >
+            <Button
+              type="text"
+              icon={<EllipsisOutlined />}
+              onClick={(e) => e.preventDefault()}
+            />
+          </Dropdown>
+        );
+      }
     },
   ];
 
