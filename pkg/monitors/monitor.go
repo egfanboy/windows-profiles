@@ -16,7 +16,7 @@ const (
 	ColDisconnected     = "Disconnected"
 	ColPrimary          = "Primary"
 	ColName             = "Name"
-	ColMonitorID        = "Monitor ID"
+	ColMonitorID        = "Short Monitor ID"
 	ColMonitorName      = "Monitor Name"
 	MultiMonitorToolExe = "MultiMonitorTool.exe"
 )
@@ -211,6 +211,66 @@ func SetPrimaryMonitor(monitorId string) error {
 	err = cmd.Run()
 	if err != nil {
 		return fmt.Errorf("failed to set primary monitor: %w", err)
+	}
+	return nil
+}
+
+func DisableMonitor(monitorId string) error {
+	// Check if MultiMonitorTool.exe exists
+	if err := CheckMultiMonitorToolExists(); err != nil {
+		return err
+	}
+
+	// Get MultiMonitorTool path
+	toolPath, err := GetMultiMonitorToolPath()
+	if err != nil {
+		return err
+	}
+
+	cmd := exec.Command(toolPath, "/disable", monitorId)
+	err = cmd.Run()
+	if err != nil {
+		return fmt.Errorf("failed to disable monitor: %w", err)
+	}
+	return nil
+}
+
+func EnableMonitor(monitorId string) error {
+	// Check if MultiMonitorTool.exe exists
+	if err := CheckMultiMonitorToolExists(); err != nil {
+		return err
+	}
+
+	// Get MultiMonitorTool path
+	toolPath, err := GetMultiMonitorToolPath()
+	if err != nil {
+		return err
+	}
+
+	cmd := exec.Command(toolPath, "/enable", monitorId)
+	err = cmd.Run()
+	if err != nil {
+		return fmt.Errorf("failed to enable monitor: %w", err)
+	}
+	return nil
+}
+
+func SetMonitorAsPrimary(monitorId string) error {
+	// Check if MultiMonitorTool.exe exists
+	if err := CheckMultiMonitorToolExists(); err != nil {
+		return err
+	}
+
+	// Get MultiMonitorTool path
+	toolPath, err := GetMultiMonitorToolPath()
+	if err != nil {
+		return err
+	}
+
+	cmd := exec.Command(toolPath, "/SetPrimary", monitorId)
+	err = cmd.Run()
+	if err != nil {
+		return fmt.Errorf("failed to set monitor as primary: %w", err)
 	}
 	return nil
 }

@@ -24,3 +24,40 @@ func (a *App) saveMonitorProfile(profileName string) error {
 
 	return monitors.SaveMonitorConfig(profilePath)
 }
+
+func (a *App) SetMonitorEnabledState(monitorId string, active bool) error {
+	if active {
+		return monitors.EnableMonitor(monitorId)
+	}
+	return monitors.DisableMonitor(monitorId)
+}
+
+// SetMonitorPrimary sets a monitor as the primary monitor
+func (a *App) SetMonitorPrimary(monitorId string) error {
+	// Find the monitor and update primary status
+	var monitor *Monitor
+	for i := range a.monitors {
+		if a.monitors[i].MonitorId == monitorId {
+			monitor = &a.monitors[i]
+			break
+		}
+	}
+
+	if monitor == nil {
+		return fmt.Errorf("monitor not found")
+	}
+
+	if !monitor.IsActive {
+		return fmt.Errorf("monitor is not active")
+	}
+
+	if !monitor.IsEnabled {
+		return fmt.Errorf("monitor is not enabled")
+	}
+
+	if monitor.IsPrimary {
+		return nil
+	}
+
+	return monitors.SetMonitorAsPrimary(monitorId)
+}

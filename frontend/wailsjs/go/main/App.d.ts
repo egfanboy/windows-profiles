@@ -36,7 +36,7 @@ export function SetAudioDeviceSelection(arg1:string,arg2:boolean):Promise<void>;
 
 export function SetDefaultAudioDevice(arg1:string):Promise<void>;
 
-export function SetMonitorEnabled(arg1:string,arg2:boolean):Promise<void>;
+export function SetMonitorEnabledState(arg1:string,arg2:boolean):Promise<void>;
 
 export function SetMonitorNickname(arg1:string,arg2:string):Promise<void>;
 

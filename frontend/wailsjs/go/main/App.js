@@ -70,8 +70,8 @@ export function SetDefaultAudioDevice(arg1) {
   return window['go']['main']['App']['SetDefaultAudioDevice'](arg1);
 }
 
-export function SetMonitorEnabled(arg1, arg2) {
-  return window['go']['main']['App']['SetMonitorEnabled'](arg1, arg2);
+export function SetMonitorEnabledState(arg1, arg2) {
+  return window['go']['main']['App']['SetMonitorEnabledState'](arg1, arg2);
 }
 
 export function SetMonitorNickname(arg1, arg2) {
