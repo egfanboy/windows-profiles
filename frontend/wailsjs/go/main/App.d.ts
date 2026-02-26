@@ -42,4 +42,6 @@ export function SetMonitorNickname(arg1:string,arg2:string):Promise<void>;
 
 export function SetMonitorPrimary(arg1:string):Promise<void>;
 
+export function SetPrimaryOutputDevice(arg1:string):Promise<void>;
+
 export function UnignoreAudioDevice(arg1:string):Promise<void>;

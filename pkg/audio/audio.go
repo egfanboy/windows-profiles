@@ -170,7 +170,7 @@ func GetActiveOutputDevices() ([]AudioDeviceInfo, error) {
 }
 
 // SetPrimaryDevice sets the specified audio device as the primary/default device
-func SetPrimaryDevice(deviceID string) error {
+func SetPrimaryDevice(commandLineId string) error {
 	// Check if svcl.exe exists
 	if err := CheckSvclExists(); err != nil {
 		return err
@@ -182,7 +182,7 @@ func SetPrimaryDevice(deviceID string) error {
 		return err
 	}
 
-	cmd := exec.Command(toolPath, "/SetDefault", deviceID, "all")
+	cmd := exec.Command(toolPath, "/SetDefault", commandLineId, "all")
 	err = cmd.Run()
 	if err != nil {
 		return fmt.Errorf("failed to set primary audio device: %w", err)
