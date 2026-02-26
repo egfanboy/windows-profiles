@@ -7,7 +7,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { 
-  SetAudioDeviceNickname, SetDefaultAudioDevice, 
+  SetAudioDeviceNickname, SetPrimaryOutputDevice, 
   IgnoreAudioDevice, UnignoreAudioDevice
 } from "../../../wailsjs/go/main/App";
 
@@ -61,7 +61,7 @@ export function AudioDevicesTable({
 
   const handleSetDefaultAudioDevice = async (deviceId: string) => {
     try {
-      await SetDefaultAudioDevice(deviceId);
+      await SetPrimaryOutputDevice(deviceId);
       window.location.reload();
     } catch (error) {
       console.error('Error setting default audio device:', error);

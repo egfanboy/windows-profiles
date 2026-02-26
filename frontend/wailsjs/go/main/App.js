@@ -82,6 +82,10 @@ export function SetMonitorPrimary(arg1) {
   return window['go']['main']['App']['SetMonitorPrimary'](arg1);
 }
 
+export function SetPrimaryOutputDevice(arg1) {
+  return window['go']['main']['App']['SetPrimaryOutputDevice'](arg1);
+}
+
 export function UnignoreAudioDevice(arg1) {
   return window['go']['main']['App']['UnignoreAudioDevice'](arg1);
 }
