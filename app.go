@@ -22,7 +22,7 @@ var startupMutex sync.Mutex
 var monitorEnumMutex sync.Mutex
 
 // Global mutex to prevent concurrent audio device enumeration
-var enumMutex sync.Mutex
+var audioEnumMutex sync.Mutex
 
 type Monitor struct {
 	DeviceName  string `json:"deviceName"`
@@ -31,26 +31,16 @@ type Monitor struct {
 	IsActive    bool   `json:"isActive"`
 	IsEnabled   bool   `json:"isEnabled"` // user-controlled enable/disable state
 	MonitorId   string `json:"monitorId"`
-	Bounds      Rect   `json:"bounds"`
 	Nickname    string `json:"nickname"` // optional custom nickname
 }
 
-type Rect struct {
-	X      int32 `json:"x"`
-	Y      int32 `json:"y"`
-	Width  int32 `json:"width"`
-	Height int32 `json:"height"`
-}
-
 type AudioDevice struct {
-	ID         string `json:"id"`
-	Name       string `json:"name"`
-	IsDefault  bool   `json:"isDefault"`
-	IsEnabled  bool   `json:"isEnabled"`
-	DeviceType string `json:"deviceType"` // "output" or "input"
-	State      string `json:"state"`      // "active", "disabled", "notpresent", "unplugged"
-	Selected   bool   `json:"selected"`   // whether this device is selected for the profile
-	Nickname   string `json:"nickname"`   // optional custom nickname
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	IsDefault bool   `json:"isDefault"`
+	IsEnabled bool   `json:"isEnabled"`
+	Selected  bool   `json:"selected"` // whether this device is selected for the profile
+	Nickname  string `json:"nickname"` // optional custom nickname
 }
 
 type IgnoreList struct {
@@ -62,37 +52,19 @@ type NicknameStorage struct {
 	AudioDevices map[string]string `json:"audioDevices"` // deviceID -> nickname
 }
 
-// MonitorManager interface defines OS-specific monitor operations
-type MonitorManager interface {
-	EnumDisplayMonitors() ([]Monitor, error)
-	SetPrimaryMonitor(deviceName string) error
-	SetMonitorState(deviceName string, active bool) error
-	ApplyProfile(profile Profile) error
-}
-
-// AudioManager interface defines OS-specific audio operations
-type AudioManager interface {
-	EnumAudioDevices() ([]AudioDevice, error)
-	SetDefaultAudioDevice(deviceID string, deviceType string) error
-	EnableAudioDevice(deviceID string, enable bool) error
-}
-
 // App struct holds the application state
 type App struct {
-	ctx            context.Context
-	monitors       []Monitor
-	audioDevices   []AudioDevice
-	profiles       []Profile
-	ignoreList     IgnoreList
-	nicknames      NicknameStorage
-	monitorManager MonitorManager
-	audioManager   AudioManager
+	ctx          context.Context
+	monitors     []Monitor
+	audioDevices []AudioDevice
+	profiles     []Profile
+	ignoreList   IgnoreList
+	nicknames    NicknameStorage
 }
 
 // NewApp creates a new App application struct
 func NewApp() *App {
 	app := &App{}
-	app.monitorManager = NewOSMonitorManager()
 	return app
 }
 
@@ -208,8 +180,8 @@ func (a *App) loadMonitors() {
 // loadAudioDevices loads audio devices using the OS-specific implementation
 func (a *App) loadAudioDevices() {
 	// Prevent concurrent audio device loading
-	enumMutex.Lock()
-	defer enumMutex.Unlock()
+	audioEnumMutex.Lock()
+	defer audioEnumMutex.Unlock()
 
 	devices := make([]AudioDevice, 0)
 
@@ -317,28 +289,6 @@ func (a *App) UnignoreAudioDevice(deviceID string) error {
 	return fmt.Errorf("device is not in ignore list")
 }
 
-// SetAudioDeviceSelection sets the selection state of an audio device
-func (a *App) SetAudioDeviceSelection(deviceID string, selected bool) error {
-	for i := range a.audioDevices {
-		if a.audioDevices[i].ID == deviceID {
-			a.audioDevices[i].Selected = selected
-			return nil
-		}
-	}
-	return fmt.Errorf("device not found")
-}
-
-// GetSelectedAudioDevices returns the list of selected audio devices
-func (a *App) GetSelectedAudioDevices() []AudioDevice {
-	var selected []AudioDevice
-	for _, device := range a.audioDevices {
-		if device.Selected && !a.isDeviceIgnored(device.ID) {
-			selected = append(selected, device)
-		}
-	}
-	return selected
-}
-
 // Nickname management methods
 
 // SetMonitorNickname sets a custom nickname for a monitor
@@ -427,43 +377,4 @@ func (a *App) loadNicknames() error {
 	}
 
 	return json.Unmarshal(data, &a.nicknames)
-}
-
-// Monitor state management methods
-// GetMonitorStates returns the current monitor states
-func (a *App) GetMonitorStates() []Monitor {
-	return a.monitors
-}
-
-// SetDefaultAudioDevice sets a device as the default for its type
-func (a *App) SetDefaultAudioDevice(deviceID string) error {
-	// Find the device and its type
-	var targetType string
-	for _, device := range a.audioDevices {
-		if device.ID == deviceID {
-			targetType = device.DeviceType
-			break
-		}
-	}
-
-	if targetType == "" {
-		return fmt.Errorf("device not found")
-	}
-
-	// Clear default flag for all devices of the same type
-	for i := range a.audioDevices {
-		if a.audioDevices[i].DeviceType == targetType {
-			a.audioDevices[i].IsDefault = false
-		}
-	}
-
-	// Set the new default
-	for i := range a.audioDevices {
-		if a.audioDevices[i].ID == deviceID {
-			a.audioDevices[i].IsDefault = true
-			break
-		}
-	}
-
-	return nil
 }

@@ -14,13 +14,9 @@ export function GetAudioDevicesWithIgnoreStatus():Promise<Record<string, any>>;
 
 export function GetMonitorNickname(arg1:string):Promise<string>;
 
-export function GetMonitorStates():Promise<Array<main.Monitor>>;
-
 export function GetMonitors():Promise<Array<main.Monitor>>;
 
 export function GetProfiles():Promise<Array<main.Profile>>;
-
-export function GetSelectedAudioDevices():Promise<Array<main.AudioDevice>>;
 
 export function IgnoreAudioDevice(arg1:string):Promise<void>;
 
@@ -31,10 +27,6 @@ export function RefreshMonitors():Promise<Array<main.Monitor>>;
 export function SaveProfile(arg1:main.SaveProfileRequest):Promise<void>;
 
 export function SetAudioDeviceNickname(arg1:string,arg2:string):Promise<void>;
-
-export function SetAudioDeviceSelection(arg1:string,arg2:boolean):Promise<void>;
-
-export function SetDefaultAudioDevice(arg1:string):Promise<void>;
 
 export function SetMonitorEnabledState(arg1:string,arg2:boolean):Promise<void>;
 
