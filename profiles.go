@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"monitor-profile-manager-wails/pkg/audio"
+	"monitor-profile-manager-wails/pkg/monitors"
 	"os"
 	"path"
 	"path/filepath"
@@ -86,6 +88,34 @@ func (a *App) GetProfiles() []Profile {
 
 // ApplyProfile applies a monitor profile by name
 func (a *App) ApplyProfile(profileName string) error {
+	var profile *Profile
+
+	for i := range a.profiles {
+		p := a.profiles[i]
+		if p.Name == profileName {
+			profile = &p
+			break
+		}
+	}
+
+	if profile == nil {
+		return fmt.Errorf("profile not found: %s", profileName)
+	}
+
+	// Apply monitor profile
+	err := monitors.ApplyMonitorConfig(a.getMonitorConfigPath(profileName))
+	if err != nil {
+		return err
+	}
+
+	// Apply audio profile
+	if profile.Audio.DefaultOutputDeviceId != "" {
+		err = audio.SetPrimaryDevice(profile.Audio.DefaultOutputDeviceId)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 

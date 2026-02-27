@@ -194,27 +194,6 @@ func SaveMonitorConfig(configPath string) error {
 	return nil
 }
 
-// SetPrimaryMonitor sets the specified monitor as the primary monitor
-func SetPrimaryMonitor(monitorId string) error {
-	// Check if MultiMonitorTool.exe exists
-	if err := CheckMultiMonitorToolExists(); err != nil {
-		return err
-	}
-
-	// Get MultiMonitorTool path
-	toolPath, err := GetMultiMonitorToolPath()
-	if err != nil {
-		return err
-	}
-
-	cmd := exec.Command(toolPath, "/SetPrimary", monitorId, "/Silent")
-	err = cmd.Run()
-	if err != nil {
-		return fmt.Errorf("failed to set primary monitor: %w", err)
-	}
-	return nil
-}
-
 func DisableMonitor(monitorId string) error {
 	// Check if MultiMonitorTool.exe exists
 	if err := CheckMultiMonitorToolExists(); err != nil {
@@ -272,5 +251,28 @@ func SetMonitorAsPrimary(monitorId string) error {
 	if err != nil {
 		return fmt.Errorf("failed to set monitor as primary: %w", err)
 	}
+	return nil
+}
+
+// ApplyMonitorConfig applies the current monitor configuration
+func ApplyMonitorConfig(configPath string) error {
+	// Check if MultiMonitorTool.exe exists
+	if err := CheckMultiMonitorToolExists(); err != nil {
+		return err
+	}
+
+	// Get MultiMonitorTool path
+	toolPath, err := GetMultiMonitorToolPath()
+	if err != nil {
+		return err
+	}
+
+	// Execute the save config command
+	cmd := exec.Command(toolPath, "/LoadConfig", configPath)
+	err = cmd.Run()
+	if err != nil {
+		return fmt.Errorf("failed to load monitor configuration: %w", err)
+	}
+
 	return nil
 }
