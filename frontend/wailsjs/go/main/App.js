@@ -26,20 +26,12 @@ export function GetMonitorNickname(arg1) {
   return window['go']['main']['App']['GetMonitorNickname'](arg1);
 }
 
-export function GetMonitorStates() {
-  return window['go']['main']['App']['GetMonitorStates']();
-}
-
 export function GetMonitors() {
   return window['go']['main']['App']['GetMonitors']();
 }
 
 export function GetProfiles() {
   return window['go']['main']['App']['GetProfiles']();
-}
-
-export function GetSelectedAudioDevices() {
-  return window['go']['main']['App']['GetSelectedAudioDevices']();
 }
 
 export function IgnoreAudioDevice(arg1) {
@@ -60,14 +52,6 @@ export function SaveProfile(arg1) {
 
 export function SetAudioDeviceNickname(arg1, arg2) {
   return window['go']['main']['App']['SetAudioDeviceNickname'](arg1, arg2);
-}
-
-export function SetAudioDeviceSelection(arg1, arg2) {
-  return window['go']['main']['App']['SetAudioDeviceSelection'](arg1, arg2);
-}
-
-export function SetDefaultAudioDevice(arg1) {
-  return window['go']['main']['App']['SetDefaultAudioDevice'](arg1);
 }
 
 export function SetMonitorEnabledState(arg1, arg2) {
