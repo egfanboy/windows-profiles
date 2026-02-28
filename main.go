@@ -82,8 +82,8 @@ func main() {
 
 	// Create application with options
 	err := wails.Run(&options.App{
-		Title:  "Monitor Profile Manager",
-		Width:  1024,
+		Title:  "Windows Profile Manager",
+		Width:  1400,
 		Height: 768,
 		AssetServer: &assetserver.Options{
 			Assets: assets,

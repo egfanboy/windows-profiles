@@ -182,7 +182,7 @@ function App() {
         backdropFilter: 'blur(10px)'
       }}>
         <Title level={2} style={{ margin: '16px 0', color: '#1a1a1a' }}>
-          <DesktopOutlined /> Monitor Profile Manager
+          <DesktopOutlined /> Windows Profile Manager
         </Title>
       </Header>
 
