@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"monitor-profile-manager-wails/pkg/audio"
 )
 
 func (a *App) SetPrimaryOutputDevice(deviceId string) error {
@@ -18,5 +17,5 @@ func (a *App) SetPrimaryOutputDevice(deviceId string) error {
 		return fmt.Errorf("audio device not found")
 	}
 
-	return audio.SetPrimaryDevice(aDevice.ID)
+	return a.audioTools.SetPrimaryDevice(aDevice.ID)
 }

@@ -3,10 +3,13 @@ package audio
 import (
 	"encoding/csv"
 	"fmt"
+	"monitor-profile-manager-wails/pkg/common"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"syscall"
 )
 
 // Column name constants
@@ -19,6 +22,17 @@ const (
 	SvclExe          = "svcl.exe"
 )
 
+// AudioTools manages audio device operations with configurable tools directory
+type AudioTools struct {
+	toolsDir string
+}
+
+// NewAudioTools creates a new AudioTools instance with the specified tools directory
+func NewAudioTools(toolsDir string) *AudioTools {
+	return &AudioTools{toolsDir: toolsDir}
+}
+
+// AudioDeviceInfo represents information about an audio device
 type AudioDeviceInfo struct {
 	data map[string]string
 }
@@ -37,7 +51,6 @@ func (a AudioDeviceInfo) GetField(fieldName string) string {
 // Helper method to check if device is primary (default)
 func (a AudioDeviceInfo) IsPrimary() bool {
 	isDefault := a.GetDefault()
-
 	return isDefault == "Render"
 }
 
@@ -46,33 +59,39 @@ func (a AudioDeviceInfo) IsActive() bool {
 	return strings.Contains(strings.ToLower(a.data[ColDeviceState]), "active")
 }
 
-// GetExecutableDir returns the directory where the executable is running
-func GetExecutableDir() (string, error) {
-	exe, err := os.Executable()
-	if err != nil {
-		return "", err
+// hideConsoleCommand creates a command with hidden console window on Windows
+func (a *AudioTools) hideConsoleCommand(name string, args ...string) *exec.Cmd {
+	cmd := exec.Command(name, args...)
+
+	// Hide console window on Windows
+	if runtime.GOOS == "windows" {
+		cmd.SysProcAttr = &syscall.SysProcAttr{
+			HideWindow: true,
+		}
 	}
-	return filepath.Dir(exe), nil
+
+	return cmd
 }
 
 // GetSvclPath returns the full path to svcl.exe
-func GetSvclPath() (string, error) {
-	// Check if we're in development mode (wails dev) by looking for go.mod
-	if _, err := os.Stat("go.mod"); err == nil {
+func (a *AudioTools) GetSvclPath() (string, error) {
+	// If custom tools directory is set (embedded tools), use it
+	if a.toolsDir != "" {
+		return filepath.Join(a.toolsDir, "svcl", SvclExe), nil
+	}
+
+	// Check if we're in development mode (wails dev)
+	if common.IsDevelopmentMode() {
 		// Development mode: use relative path from project root
 		return filepath.Join("tools", "svcl", SvclExe), nil
 	}
-	// Production mode: tools should be in a 'tools' subdirectory next to the exe
-	exeDir, err := GetExecutableDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(exeDir, "tools", "svcl", SvclExe), nil
+
+	return "", fmt.Errorf("svcl.exe not found in tools/svcl directory")
 }
 
 // CheckSvclExists verifies that svcl.exe exists
-func CheckSvclExists() error {
-	path, err := GetSvclPath()
+func (a *AudioTools) CheckSvclExists() error {
+	path, err := a.GetSvclPath()
 	if err != nil {
 		return err
 	}
@@ -84,20 +103,20 @@ func CheckSvclExists() error {
 }
 
 // GetActiveOutputDevices retrieves active output devices using svcl.exe /scomma
-func GetActiveOutputDevices() ([]AudioDeviceInfo, error) {
+func (a *AudioTools) GetActiveOutputDevices() ([]AudioDeviceInfo, error) {
 	// Check if svcl.exe exists
-	if err := CheckSvclExists(); err != nil {
+	if err := a.CheckSvclExists(); err != nil {
 		return nil, err
 	}
 
 	// Get svcl.exe path
-	toolPath, err := GetSvclPath()
+	toolPath, err := a.GetSvclPath()
 	if err != nil {
 		return nil, err
 	}
 
 	// Execute svcl.exe with /scomma and capture stdout
-	cmd := exec.Command(toolPath, "/scomma")
+	cmd := a.hideConsoleCommand(toolPath, "/scomma")
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute svcl.exe: %w", err)
@@ -170,19 +189,19 @@ func GetActiveOutputDevices() ([]AudioDeviceInfo, error) {
 }
 
 // SetPrimaryDevice sets the specified audio device as the primary/default device
-func SetPrimaryDevice(commandLineId string) error {
+func (a *AudioTools) SetPrimaryDevice(commandLineId string) error {
 	// Check if svcl.exe exists
-	if err := CheckSvclExists(); err != nil {
+	if err := a.CheckSvclExists(); err != nil {
 		return err
 	}
 
 	// Get svcl.exe path
-	toolPath, err := GetSvclPath()
+	toolPath, err := a.GetSvclPath()
 	if err != nil {
 		return err
 	}
 
-	cmd := exec.Command(toolPath, "/SetDefault", commandLineId, "all")
+	cmd := a.hideConsoleCommand(toolPath, "/SetDefault", commandLineId, "all")
 	err = cmd.Run()
 	if err != nil {
 		return fmt.Errorf("failed to set primary audio device: %w", err)
