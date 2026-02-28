@@ -60,6 +60,8 @@ type App struct {
 	profiles     []Profile
 	ignoreList   IgnoreList
 	nicknames    NicknameStorage
+	audioTools   *audio.AudioTools
+	monitorTools *monitors.MonitorTools
 }
 
 // NewApp creates a new App application struct
@@ -76,6 +78,15 @@ func (a *App) startup(ctx context.Context) {
 	defer startupMutex.Unlock()
 
 	a.ctx = ctx
+
+	// Extract embedded tools to temporary directory
+	if toolsDir, err := extractTools(); err != nil {
+		fmt.Printf("Failed to extract tools: %v\n", err)
+	} else {
+		a.audioTools = audio.NewAudioTools(toolsDir)
+		a.monitorTools = monitors.NewMonitorTools(toolsDir)
+		fmt.Printf("Tools extracted to: %s\n", toolsDir)
+	}
 
 	// Load all components with error handling to prevent crashes
 	if err := func() error {
@@ -144,7 +155,8 @@ func (a *App) loadMonitors() {
 	monitorEnumMutex.Lock()
 	defer monitorEnumMutex.Unlock()
 
-	monitors, err := monitors.GetMonitorList()
+	monitors, err := a.monitorTools.GetMonitorList()
+
 	appMonitors := make([]Monitor, 0)
 	if err == nil {
 		for _, monitor := range monitors {
@@ -185,7 +197,7 @@ func (a *App) loadAudioDevices() {
 
 	devices := make([]AudioDevice, 0)
 
-	svclDevices, err := audio.GetActiveOutputDevices()
+	svclDevices, err := a.audioTools.GetActiveOutputDevices()
 
 	if err != nil {
 		devices = []AudioDevice{}

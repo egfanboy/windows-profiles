@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"monitor-profile-manager-wails/pkg/monitors"
 	"path/filepath"
 )
 
@@ -22,14 +21,14 @@ func (a *App) saveMonitorProfile(profileName string) error {
 	// Create the full path with .cfg extension
 	profilePath := a.getMonitorConfigPath(profileName)
 
-	return monitors.SaveMonitorConfig(profilePath)
+	return a.monitorTools.SaveMonitorConfig(profilePath)
 }
 
 func (a *App) SetMonitorEnabledState(monitorId string, active bool) error {
 	if active {
-		return monitors.EnableMonitor(monitorId)
+		return a.monitorTools.EnableMonitor(monitorId)
 	}
-	return monitors.DisableMonitor(monitorId)
+	return a.monitorTools.DisableMonitor(monitorId)
 }
 
 // SetMonitorPrimary sets a monitor as the primary monitor
@@ -59,5 +58,5 @@ func (a *App) SetMonitorPrimary(monitorId string) error {
 		return nil
 	}
 
-	return monitors.SetMonitorAsPrimary(monitorId)
+	return a.monitorTools.SetMonitorAsPrimary(monitorId)
 }

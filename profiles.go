@@ -3,8 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"monitor-profile-manager-wails/pkg/audio"
-	"monitor-profile-manager-wails/pkg/monitors"
 	"os"
 	"path"
 	"path/filepath"
@@ -103,14 +101,14 @@ func (a *App) ApplyProfile(profileName string) error {
 	}
 
 	// Apply monitor profile
-	err := monitors.ApplyMonitorConfig(a.getMonitorConfigPath(profileName))
+	err := a.monitorTools.ApplyMonitorConfig(a.getMonitorConfigPath(profileName))
 	if err != nil {
 		return err
 	}
 
 	// Apply audio profile
 	if profile.Audio.DefaultOutputDeviceId != "" {
-		err = audio.SetPrimaryDevice(profile.Audio.DefaultOutputDeviceId)
+		err = a.audioTools.SetPrimaryDevice(profile.Audio.DefaultOutputDeviceId)
 		if err != nil {
 			return err
 		}

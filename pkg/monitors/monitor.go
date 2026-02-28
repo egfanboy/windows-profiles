@@ -3,10 +3,13 @@ package monitors
 import (
 	"encoding/csv"
 	"fmt"
+	"monitor-profile-manager-wails/pkg/common"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -21,6 +24,17 @@ const (
 	MultiMonitorToolExe = "MultiMonitorTool.exe"
 )
 
+// MonitorTools manages monitor operations with configurable tools directory
+type MonitorTools struct {
+	toolsDir string
+}
+
+// NewMonitorTools creates a new MonitorTools instance with the specified tools directory
+func NewMonitorTools(toolsDir string) *MonitorTools {
+	return &MonitorTools{toolsDir: toolsDir}
+}
+
+// MonitorInfo represents information about a monitor
 type MonitorInfo struct {
 	data map[string]string
 }
@@ -41,6 +55,20 @@ func evaluateValueToBoolean(flag string) bool {
 	return flag == "Yes"
 }
 
+// hideConsoleCommand creates a command with hidden console window on Windows
+func (m *MonitorTools) hideConsoleCommand(name string, args ...string) *exec.Cmd {
+	cmd := exec.Command(name, args...)
+
+	// Hide console window on Windows
+	if runtime.GOOS == "windows" {
+		cmd.SysProcAttr = &syscall.SysProcAttr{
+			HideWindow: true,
+		}
+	}
+
+	return cmd
+}
+
 // GetExecutableDir returns the directory where the executable is running
 func GetExecutableDir() (string, error) {
 	exe, err := os.Executable()
@@ -51,23 +79,24 @@ func GetExecutableDir() (string, error) {
 }
 
 // GetMultiMonitorToolPath returns the full path to MultiMonitorTool.exe
-func GetMultiMonitorToolPath() (string, error) {
-	// Check if we're in development mode (wails dev) by looking for go.mod
-	if _, err := os.Stat("go.mod"); err == nil {
+func (m *MonitorTools) GetMultiMonitorToolPath() (string, error) {
+	// If custom tools directory is set (embedded tools), use it
+	if m.toolsDir != "" {
+		return filepath.Join(m.toolsDir, "multimonitortool", MultiMonitorToolExe), nil
+	}
+
+	// Check if we're in development mode (wails dev)
+	if common.IsDevelopmentMode() {
 		// Development mode: use relative path from project root
 		return filepath.Join("tools", "multimonitortool", MultiMonitorToolExe), nil
 	}
-	// Production mode: tools should be in a 'tools' subdirectory next to the exe
-	exeDir, err := GetExecutableDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(exeDir, "tools", "multimonitortool", MultiMonitorToolExe), nil
+
+	return "", fmt.Errorf("MultiMonitorTool.exe not found in current directory")
 }
 
 // CheckMultiMonitorToolExists verifies that MultiMonitorTool.exe exists
-func CheckMultiMonitorToolExists() error {
-	path, err := GetMultiMonitorToolPath()
+func (m *MonitorTools) CheckMultiMonitorToolExists() error {
+	path, err := m.GetMultiMonitorToolPath()
 	if err != nil {
 		return err
 	}
@@ -79,20 +108,20 @@ func CheckMultiMonitorToolExists() error {
 }
 
 // GetMonitorList retrieves the list of monitors using MultiMonitorTool
-func GetMonitorList() ([]MonitorInfo, error) {
+func (m *MonitorTools) GetMonitorList() ([]MonitorInfo, error) {
 	// Check if MultiMonitorTool.exe exists
-	if err := CheckMultiMonitorToolExists(); err != nil {
+	if err := m.CheckMultiMonitorToolExists(); err != nil {
 		return nil, err
 	}
 
 	// Get MultiMonitorTool path
-	toolPath, err := GetMultiMonitorToolPath()
+	toolPath, err := m.GetMultiMonitorToolPath()
 	if err != nil {
 		return nil, err
 	}
 
 	// Export monitor list to CSV
-	cmd := exec.Command(toolPath, "/List", "/scomma", "monitors.csv")
+	cmd := m.hideConsoleCommand(toolPath, "/List", "/scomma", "monitors.csv")
 	err = cmd.Run()
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute MultiMonitorTool: %w", err)
@@ -172,21 +201,21 @@ func GetMonitorList() ([]MonitorInfo, error) {
 	return monitors, nil
 }
 
-// SaveMonitorConfig saves the current monitor configuration to a config file
-func SaveMonitorConfig(configPath string) error {
+// SaveMonitorConfig saves the current monitor configuration to a file
+func (m *MonitorTools) SaveMonitorConfig(configPath string) error {
 	// Check if MultiMonitorTool.exe exists
-	if err := CheckMultiMonitorToolExists(); err != nil {
+	if err := m.CheckMultiMonitorToolExists(); err != nil {
 		return err
 	}
 
 	// Get MultiMonitorTool path
-	toolPath, err := GetMultiMonitorToolPath()
+	toolPath, err := m.GetMultiMonitorToolPath()
 	if err != nil {
 		return err
 	}
 
 	// Execute the save config command
-	cmd := exec.Command(toolPath, "/SaveConfig", configPath)
+	cmd := m.hideConsoleCommand(toolPath, "/SaveConfig", configPath)
 	err = cmd.Run()
 	if err != nil {
 		return fmt.Errorf("failed to save monitor configuration: %w", err)
@@ -194,19 +223,20 @@ func SaveMonitorConfig(configPath string) error {
 	return nil
 }
 
-func DisableMonitor(monitorId string) error {
+// DisableMonitor disables the specified monitor
+func (m *MonitorTools) DisableMonitor(monitorId string) error {
 	// Check if MultiMonitorTool.exe exists
-	if err := CheckMultiMonitorToolExists(); err != nil {
+	if err := m.CheckMultiMonitorToolExists(); err != nil {
 		return err
 	}
 
 	// Get MultiMonitorTool path
-	toolPath, err := GetMultiMonitorToolPath()
+	toolPath, err := m.GetMultiMonitorToolPath()
 	if err != nil {
 		return err
 	}
 
-	cmd := exec.Command(toolPath, "/disable", monitorId)
+	cmd := m.hideConsoleCommand(toolPath, "/disable", monitorId)
 	err = cmd.Run()
 	if err != nil {
 		return fmt.Errorf("failed to disable monitor: %w", err)
@@ -214,19 +244,20 @@ func DisableMonitor(monitorId string) error {
 	return nil
 }
 
-func EnableMonitor(monitorId string) error {
+// EnableMonitor enables the specified monitor
+func (m *MonitorTools) EnableMonitor(monitorId string) error {
 	// Check if MultiMonitorTool.exe exists
-	if err := CheckMultiMonitorToolExists(); err != nil {
+	if err := m.CheckMultiMonitorToolExists(); err != nil {
 		return err
 	}
 
 	// Get MultiMonitorTool path
-	toolPath, err := GetMultiMonitorToolPath()
+	toolPath, err := m.GetMultiMonitorToolPath()
 	if err != nil {
 		return err
 	}
 
-	cmd := exec.Command(toolPath, "/enable", monitorId)
+	cmd := m.hideConsoleCommand(toolPath, "/enable", monitorId)
 	err = cmd.Run()
 	if err != nil {
 		return fmt.Errorf("failed to enable monitor: %w", err)
@@ -234,19 +265,20 @@ func EnableMonitor(monitorId string) error {
 	return nil
 }
 
-func SetMonitorAsPrimary(monitorId string) error {
+// SetMonitorAsPrimary sets the specified monitor as the primary display
+func (m *MonitorTools) SetMonitorAsPrimary(monitorId string) error {
 	// Check if MultiMonitorTool.exe exists
-	if err := CheckMultiMonitorToolExists(); err != nil {
+	if err := m.CheckMultiMonitorToolExists(); err != nil {
 		return err
 	}
 
 	// Get MultiMonitorTool path
-	toolPath, err := GetMultiMonitorToolPath()
+	toolPath, err := m.GetMultiMonitorToolPath()
 	if err != nil {
 		return err
 	}
 
-	cmd := exec.Command(toolPath, "/SetPrimary", monitorId)
+	cmd := m.hideConsoleCommand(toolPath, "/SetPrimary", monitorId)
 	err = cmd.Run()
 	if err != nil {
 		return fmt.Errorf("failed to set monitor as primary: %w", err)
@@ -255,20 +287,20 @@ func SetMonitorAsPrimary(monitorId string) error {
 }
 
 // ApplyMonitorConfig applies the current monitor configuration
-func ApplyMonitorConfig(configPath string) error {
+func (m *MonitorTools) ApplyMonitorConfig(configPath string) error {
 	// Check if MultiMonitorTool.exe exists
-	if err := CheckMultiMonitorToolExists(); err != nil {
+	if err := m.CheckMultiMonitorToolExists(); err != nil {
 		return err
 	}
 
 	// Get MultiMonitorTool path
-	toolPath, err := GetMultiMonitorToolPath()
+	toolPath, err := m.GetMultiMonitorToolPath()
 	if err != nil {
 		return err
 	}
 
 	// Execute the save config command
-	cmd := exec.Command(toolPath, "/LoadConfig", configPath)
+	cmd := m.hideConsoleCommand(toolPath, "/LoadConfig", configPath)
 	err = cmd.Run()
 	if err != nil {
 		return fmt.Errorf("failed to load monitor configuration: %w", err)
