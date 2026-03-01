@@ -1,6 +1,6 @@
-# Monitor Profile Manager (Wails + React)
+# Windows Profile Manager
 
-A modern Windows desktop application built with Wails v2 and React that allows you to create and manage monitor and audio device profiles for different display and audio configurations.
+A Windows desktop application built with Wails and React that allows you to create and manage monitor and audio device profiles for different display and audio configurations.
 
 ## Features
 
@@ -9,31 +9,55 @@ A modern Windows desktop application built with Wails v2 and React that allows y
 - **Profile Management**: Save and load different monitor and audio device configurations
 - **Display Control**: Activate/deactivate monitors and set primary display via CLI tools
 - **Audio Control**: Set default audio devices and manage audio device states via CLI tools
-- **Modern UI**: Clean, responsive interface using React with resizable table columns
-- **Cross-Platform**: Built with Go and React, compiles on multiple platforms (monitor and audio management only works on Windows)
-
-## Technology Stack
-
-- **Backend**: Go with Wails v2
-- **Frontend**: React 18 with TypeScript
-- **Build Tool**: Vite
-- **Styling**: Modern CSS with gradients and animations
-- **UI Components**: Custom resizable table component
-- **CLI Tools**: MultiMonitorTool for monitor management, SVCL for audio device management
 
 ## Requirements
 
-- Go 1.23 or later
+- Go 1.25 or later
 - Node.js 18+ and npm (for frontend development)
 - Windows operating system (for monitor and audio management functionality)
 - C compiler (for Wails compilation)
 - **MultiMonitorTool**: Included in `tools/multimonitortool/` directory
 - **SVCL (SoundVolumeCommandLine)**: Included in `tools/svcl/` directory
 
+## CLI Tools Setup
+
+This application requires two external CLI tools from NirSoft for monitor and audio management:
+
+### Downloading the Tools
+
+1. **SVCL (SoundVolumeCommandLine)**
+   - Download from: https://www.nirsoft.net/utils/sound_volume_command_line.html
+   - Download the ZIP file and extract `svcl.exe`
+   - Place `svcl.exe` in: `tools/svcl/svcl.exe`
+
+2. **MultiMonitorTool**
+   - Download from: https://www.nirsoft.net/utils/multi_monitor_tool.html
+   - Download the ZIP file and extract `MultiMonitorTool.exe`
+   - Place `MultiMonitorTool.exe` in: `tools/multimonitortool/MultiMonitorTool.exe`
+
+### Directory Structure
+
+Create the following directory structure in your project:
+
+```
+tools/
+├── svcl/
+│   └── svcl.exe
+└── multimonitortool/
+    └── MultiMonitorTool.exe
+```
+
+### Important Notes
+
+- Both tools are portable executables - no installation required
+- The application expects these exact file paths for CLI integration
+- Run the tools once manually to ensure they work on your system
+- On some systems, you may need to run as administrator for full functionality
+
 ## Installation
 
 ### Prerequisites
-1. Install Go 1.23 or later from [golang.org](https://golang.org/dl/)
+1. Install Go 1.25 or later from [golang.org](https://golang.org/dl/)
 2. Install Node.js 18+ from [nodejs.org](https://nodejs.org/)
 3. Install Wails CLI:
    ```bash
@@ -68,38 +92,6 @@ For production build without frontend dependencies (uses pre-built frontend):
 wails build -s
 ```
 
-## Usage
-
-### Detecting Monitors
-1. Launch the application
-2. Click "Refresh Monitors" to detect all connected displays
-3. View monitor information including resolution, primary status, and device name in the resizable table
-
-### Creating Profiles
-1. Configure your monitors and audio devices as desired (using Windows display settings and sound settings)
-2. Click "Save Current Profile"
-3. Enter a name for your profile
-4. The profile will be saved to `~/MonitorProfiles/` with both monitor and audio device configurations
-
-### Applying Profiles
-1. Select a profile from the dropdown list
-2. Click "Apply Selected Profile"
-3. The application will configure your monitors and audio devices according to the saved profile using CLI tools
-
-## UI Features
-
-### Resizable Table
-- **Drag column borders** to resize table columns
-- **Hover effects** on resize handles for better UX
-- **Minimum width constraints** to prevent columns from becoming too small
-- **Persistent sizing** during the session
-
-### Modern Design
-- **Gradient background** with glassmorphism effects
-- **Smooth animations** and transitions
-- **Responsive layout** that adapts to different screen sizes
-- **Status indicators** with color coding (active/inactive monitors)
-
 ## Project Structure
 
 ```
@@ -127,39 +119,3 @@ wails build -s
 │   └── vite.config.ts  # Vite configuration
 └── build/              # Built executables
 ```
-
-## Architecture Overview
-
-This project uses a **CLI-based architecture** for system integration:
-
-### CLI Tool Integration
-- **MultiMonitorTool**: External CLI tool for monitor detection and configuration
-  - Located in `tools/multimonitortool/MultiMonitorTool.exe`
-  - Provides monitor enumeration, primary display setting, and display state control
-  - Integration via CSV output parsing and command-line execution
-
-- **SVCL (SoundVolumeCommandLine)**: External CLI tool for audio device management
-  - Located in `tools/svcl/svcl.exe`
-  - Provides audio device enumeration and default device setting
-  - Integration via CSV output parsing and command-line execution
-
-### Benefits of CLI Approach
-- **Reliability**: Stable, well-tested third-party tools for system operations
-- **Maintainability**: No complex Windows API calls in Go code
-- **Flexibility**: Easy to update CLI tools without code changes
-- **Compatibility**: Tools handle Windows version differences automatically
-
-## Migration from Direct API Calls
-
-This project was successfully migrated from direct Windows API calls to CLI-based integration with the following improvements:
-- **Stability**: CLI tools handle edge cases and Windows version differences
-- **Simplified Codebase**: No complex Windows API interactions in Go
-- **Better Error Handling**: CLI tools provide clear error messages
-- **Enhanced Functionality**: Added audio device management through SVCL
-- **Maintained UI**: All original React UI features preserved
-- **Cross-platform Potential**: Easier to extend to other platforms with equivalent CLI tools
-
-## License
-
-This project is open source. Please refer to the LICENSE file for details.
-To build a redistributable, production mode package, use `wails build`.
