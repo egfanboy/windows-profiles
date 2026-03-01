@@ -51,6 +51,8 @@ func (a *App) SaveProfile(request SaveProfileRequest) error {
 
 	a.profiles = append(a.profiles, profile)
 
+	a.sendProfilesUpdatedEvent()
+
 	return a.saveProfilesToDisk()
 }
 
@@ -74,6 +76,8 @@ func (a *App) DeleteProfile(profileName string) error {
 	if err != nil {
 		return err
 	}
+
+	a.sendProfilesUpdatedEvent()
 
 	return nil
 }
@@ -146,6 +150,8 @@ func (a *App) loadProfiles() {
 	}
 
 	a.profiles = profiles
+
+	a.sendProfilesUpdatedEvent()
 }
 
 func (a *App) saveProfilesToDisk() error {
@@ -160,4 +166,12 @@ func (a *App) saveProfilesToDisk() error {
 	}
 
 	return os.WriteFile(path.Join(profilesDir, PROFILE_FILE_NAME), data, 0644)
+}
+
+func (a *App) sendProfilesUpdatedEvent() {
+	profileNames := make([]string, 0)
+	for _, profile := range a.profiles {
+		profileNames = append(profileNames, profile.Name)
+	}
+	profilesUpdatedCh <- profileNames
 }
